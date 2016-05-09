@@ -201,7 +201,24 @@ INSTALL
 
     Please be sure to add this configuration before Apache::ASP is loaded via
     PerlModule, or a PerlRequire statement.
+  
+  PSGI support
+    Apache::ASP can be run using PSGI server. For doing this, put a script with
+    the following into root of your application :
 
+       #!/usr/bin/perl
+       use Apache::ASP::PSGI::App;
+       my $app = Apache::ASP::PSGI::App::get_app();
+
+    Run your app 
+ 
+       plackup app.pl
+
+    Any file under your application directory with an .asp suffix will now be
+    served as Apache::ASP script file.
+    You are also advised to put config.yml file where you can put any
+    configurations are normally put in apache configuration file.
+    
 CONFIG
     You may use a <Files ...> directive in your httpd.conf Apache configuration
     file to make Apache::ASP start ticking. Configure the optional settings if
