@@ -212,7 +212,7 @@ INSTALL
 
     Run your app 
  
-       plackup app.pl
+       plackup app.psg
 
     Any file under your application directory with an .asp suffix will now be
     served as Apache::ASP script file.
