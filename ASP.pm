@@ -3,7 +3,7 @@
 # or try `perldoc Apache::ASP`
 
 package Apache::ASP;
-
+use utf8;
 $VERSION = 2.63;
 
 #require DynaLoader;
@@ -296,6 +296,7 @@ sub new {
        stat_inc         => &get_dir_config($dir_config, 'StatINC'),    
        stat_inc_match   => &get_dir_config($dir_config, 'StatINCMatch'),
        use_strict       => &get_dir_config($dir_config, 'UseStrict'),
+       utf8_source      => &config($self, 'UTF8_Source'),
        win32            => ($^O eq 'MSWin32') ? 1 : 0,
        xslt             => &get_dir_config($dir_config, 'XSLT'),
       }, $class;
@@ -1330,11 +1331,15 @@ sub ReadFile {
     my($self, $file) = @_;
 
     local *READFILE;
-    open(READFILE, $file) || $self->Error("can't open file $file for reading");
+    my $flags = '<';
+    if($self->{utf8_source}) {
+        $flags = '<:encoding(UTF-8)';
+    }
+    open(READFILE,$flags, $file) || $self->Error("can't open file $file for reading");
     local $/ = undef;
     my $data = <READFILE>;
     close READFILE;
-
+    
     \$data;
 }
 

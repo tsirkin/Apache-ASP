@@ -1,6 +1,5 @@
 
 package Apache::ASP::Request;
-use Data::Dumper;
 use Apache::ASP::Collection;
 use strict;
 
@@ -28,7 +27,7 @@ sub new {
 
     # set up the environment, including authentication info
     my $env = { %{$r->subprocess_env}, %ENV };
-    if($r->{PSGI}){
+    if(ref $r eq 'Apache::ASP::PSGI'){
         $env = { %$env, $r->get_env() };
     }
 
