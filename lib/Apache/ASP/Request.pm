@@ -279,33 +279,45 @@ sub ParseParams {
 
     my %params;
     defined($string) || return(\%params);
+    ###
+
+    if($self->{asp}->utf8_input) {
+        eval{
+            use Encode;
+            $string = Encode::decode("utf8",$string);
+        }
+    }
+
+    if($@) {
+        $self->{asp}->Error("Can't decode $string in input as utf8 is this really a utf8? : $@");
+    }
     my @params = split /[\&\;]/, $string, -1;
 
     # we have to iterate through the params here to collect multiple values for 
     # the same param, say from a multiple select statement
     for my $pair (@params) {
-	my($key, $value) = map { 
-	    # inline for greater efficiency
-	    # &Unescape($self, $_) 
-	    my $todecode = $_;
-	    $todecode =~ tr/+/ /;       # pluses become spaces
-	    $todecode =~ s/%([0-9a-fA-F]{2})/chr(hex($1))/ge;
-	    $todecode;
-	} split (/\=/, $pair, 2);
-	if(defined $params{$key}) {
-	    my $collect = $params{$key};
-
-	    if(ref $collect) {
-		# we have already collected more than one param for that key
-		push(@{$collect}, $value);
-	    } else {
-		# this is the second value for a key we've seen, start array
-		$params{$key} = [$collect, $value];
-	    }
-	} else {
-	    # normal use, one to one key value pairs, just set
-	    $params{$key} = $value;
-	}
+        my($key, $value) = map { 
+            # inline for greater efficiency
+            # &Unescape($self, $_) 
+            my $todecode = $_;
+            $todecode =~ tr/+/ /;       # pluses become spaces
+            $todecode =~ s/%([0-9a-fA-F]{2})/chr(hex($1))/ge;
+            $todecode;
+        } split (/\=/, $pair, 2);
+        if(defined $params{$key}) {
+            my $collect = $params{$key};
+            
+            if(ref $collect) {
+                # we have already collected more than one param for that key
+                push(@{$collect}, $value);
+            } else {
+                # this is the second value for a key we've seen, start array
+                $params{$key} = [$collect, $value];
+            }
+        } else {
+            # normal use, one to one key value pairs, just set
+            $params{$key} = $value;
+        }
     }
 
     \%params;

@@ -297,6 +297,7 @@ sub new {
        stat_inc_match   => &get_dir_config($dir_config, 'StatINCMatch'),
        use_strict       => &get_dir_config($dir_config, 'UseStrict'),
        utf8_source      => &config($self, 'UTF8_Source'),
+       utf8_input      => &config($self, 'UTF8_Input'),
        win32            => ($^O eq 'MSWin32') ? 1 : 0,
        xslt             => &get_dir_config($dir_config, 'XSLT'),
       }, $class;
