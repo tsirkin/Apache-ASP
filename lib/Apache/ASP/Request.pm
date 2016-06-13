@@ -281,16 +281,6 @@ sub ParseParams {
     defined($string) || return(\%params);
     ###
 
-    if($self->{asp}->utf8_input) {
-        eval{
-            use Encode;
-            $string = Encode::decode("utf8",$string);
-        }
-    }
-
-    if($@) {
-        $self->{asp}->Error("Can't decode $string in input as utf8 is this really a utf8? : $@");
-    }
     my @params = split /[\&\;]/, $string, -1;
 
     # we have to iterate through the params here to collect multiple values for 
@@ -302,6 +292,17 @@ sub ParseParams {
             my $todecode = $_;
             $todecode =~ tr/+/ /;       # pluses become spaces
             $todecode =~ s/%([0-9a-fA-F]{2})/chr(hex($1))/ge;
+            if($self->{asp}->{utf8_input}) {
+                eval{
+                    use Encode;
+                    $todecode = Encode::decode("utf8",$todecode);
+                }
+            }
+
+            if($@) {
+                $self->{asp}->Error("Can't decode $string in input as utf8 is this really a utf8? : $@");
+            }
+
             $todecode;
         } split (/\=/, $pair, 2);
         if(defined $params{$key}) {
