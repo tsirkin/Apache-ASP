@@ -50,91 +50,91 @@ sub new {
     my %upload;
     my $headers_in = $self->{asp}{headers_in};
     if($self->{Method} eq 'POST' and $request_binary_read) {
-	$self->{TotalBytes} = defined($ENV{CONTENT_LENGTH}) ? $ENV{CONTENT_LENGTH} : $headers_in->get('Content-Length');
-	if($headers_in->get('Content-Type') =~ m|^multipart/form-data|) {
-	    # do the logic here so that the normal form POST processing will not
-	    # occur either
-	    $asp->{file_upload_process} = &config($asp, 'FileUploadProcess', undef, 1);
-	    if($asp->{file_upload_process}) {
-		if($asp->{file_upload_temp} = &config($asp, 'FileUploadTemp')) {
-		    eval "use CGI;";
-		} else {
-		    # default leaves no temp files for prying eyes
-		    eval "use CGI qw(-private_tempfiles);";		
-		}
-		if($@) { 
-		    $self->{asp}->Error("can't use file upload without CGI.pm: $@");
-		    goto ASP_REQUEST_POST_READ_DONE;
-		}
-
-		# new behavior for file uploads when FileUploadMax is exceeded,
-		# before it used to error abruptly, now it will simply skip the file 
-		# upload data
-		local $CGI::DISABLE_UPLOADS = $CGI::DISABLE_UPLOADS;
-		if($asp->{file_upload_max} = &config($asp, 'FileUploadMax')) {
-		    if($self->{TotalBytes} > $asp->{file_upload_max} ) {
-			$CGI::DISABLE_UPLOADS = 1;
-		    }
-		}
-		
-		$asp->{dbg} && $asp->Debug("using CGI.pm version ".
-					   (eval { CGI->VERSION } || $CGI::VERSION).
-					   " for file upload support"
+        $self->{TotalBytes} = defined($ENV{CONTENT_LENGTH}) ? $ENV{CONTENT_LENGTH} : $headers_in->get('Content-Length');
+        if($headers_in->get('Content-Type') =~ m|^multipart/form-data|) {
+            # do the logic here so that the normal form POST processing will not
+            # occur either
+            $asp->{file_upload_process} = &config($asp, 'FileUploadProcess', undef, 1);
+            if($asp->{file_upload_process}) {
+                if($asp->{file_upload_temp} = &config($asp, 'FileUploadTemp')) {
+                    eval "use CGI;";
+                } else {
+                    # default leaves no temp files for prying eyes
+                    eval "use CGI qw(-private_tempfiles);";		
+                }
+                if($@) { 
+                    $self->{asp}->Error("can't use file upload without CGI.pm: $@");
+                    goto ASP_REQUEST_POST_READ_DONE;
+                }
+                
+                # new behavior for file uploads when FileUploadMax is exceeded,
+                # before it used to error abruptly, now it will simply skip the file 
+                # upload data
+                local $CGI::DISABLE_UPLOADS = $CGI::DISABLE_UPLOADS;
+                if($asp->{file_upload_max} = &config($asp, 'FileUploadMax')) {
+                    if($self->{TotalBytes} > $asp->{file_upload_max} ) {
+                        $CGI::DISABLE_UPLOADS = 1;
+                    }
+                }
+                
+                $asp->{dbg} && $asp->Debug("using CGI.pm version ".
+                                           (eval { CGI->VERSION } || $CGI::VERSION).
+                                           " for file upload support"
 					  );
-
-		my %form;
-		my $q;
-        if(ref $asp->{r} eq 'Apache::ASP::PSGI'){
-            use CGI::PSGI;
-            my $psgi_env = $r->psgi_env;
-            $q = CGI::PSGI->new($psgi_env);
-        }else{
-            $q = new CGI;
-        }
-		$self->{cgi} = $q;
-		$asp->Debug($q->param);
-		for(my @names = $q->param) {
-		    my @params = $q->param($_);
-		    $form{$_} = @params > 1 ? [ @params ] : $params[0];
-		    if(ref($form{$_}) eq 'Fh' || ref($form{$_}) eq 'fh' || ref($form{$_}) eq 'CGI::File::Temp') {
-			my $fh = $form{$_};
-			binmode $fh if $asp->{win32};
-			$upload{$_} = $q->uploadInfo($fh);
-			if($asp->{file_upload_temp}) {
-			    $upload{$_}{TempFile} = $q->tmpFileName($fh);
-			    $upload{$_}{TempFile} =~ s|^/+|/|;
-			}
-			$upload{$_}{BrowserFile} = "$fh";
-			$upload{$_}{FileHandle} = $fh;
-			$upload{$_}{ContentType} = $upload{$_}{'Content-Type'};
-			# tie the file upload reference to a collection... %upload
-			# may be many file uploads note.
-			$upload{$_} = bless $upload{$_}, 'Apache::ASP::Collection';
-			$asp->{dbg} && $asp->Debug("file upload field processed for \$Request->{FileUpload}{$_}", $upload{$_});
-		    }
-		}
-		$form = \%form;
-	    } else {
-		$self->{asp}->Debug("FileUploadProcess is disabled, file upload data in \$Request->BinaryRead");
-	    }
-
-	} else {
-	    # Only tie to STDIN if we have cached contents
-	    # don't untie *STDIN until DESTROY, so filtered handlers
-	    # have an opportunity to use any cached contents that may exist
-	    if(my $len = $self->{TotalBytes}) {
-            $self->{content} = $self->BinaryRead($len) || '';
-            $self->{all_content_read} = 1;
-            tie(*STDIN, 'Apache::ASP::Request', $self);
-            #AJAX POSTs are ``application/x-www-form-urlencoded; charset=UTF-8'' in Firefox3+
-            #by Richard Walsh Nov 25, 2008 (found in nabble)
-            if($headers_in->get('Content-Type') =~ m|^application/x-www-form-urlencoded|) {
-                $form = &ParseParams($self, \$self->{content});
+                
+                my %form;
+                my $q;
+                if(ref $asp->{r} eq 'Apache::ASP::PSGI'){
+                    use CGI::PSGI;
+                    my $psgi_env = $r->psgi_env;
+                    $q = CGI::PSGI->new($psgi_env);
+                }else{
+                    $q = new CGI;
+                }
+                $self->{cgi} = $q;
+                for(my @names = $q->param) {
+                    my @params = $q->param($_);
+                    $form{$_} = @params > 1 ? [ @params ] : $params[0];
+                    if(ref($form{$_}) eq 'Fh' || ref($form{$_}) eq 'fh' || ref($form{$_}) eq 'CGI::File::Temp') {
+                        my $fh = $form{$_};
+                        binmode $fh if $asp->{win32};
+                        $upload{$_} = $q->uploadInfo($fh);
+                        if($asp->{file_upload_temp}) {
+                            $upload{$_}{TempFile} = $q->tmpFileName($fh);
+                            $upload{$_}{TempFile} =~ s|^/+|/|;
+                        }
+                        $upload{$_}{BrowserFile} = "$fh";
+                        $upload{$_}{FileHandle} = $fh;
+                        $upload{$_}{ContentType} = $upload{$_}{'Content-Type'};
+                        # tie the file upload reference to a collection... %upload
+                        # may be many file uploads note.
+                        $upload{$_} = bless $upload{$_}, 'Apache::ASP::Collection';
+                        $asp->{dbg} && $asp->Debug("file upload field processed for \$Request->{FileUpload}{$_}", $upload{$_});
+                    }
+                }
+                $form = \%form;
             } else {
-		    $form = {};
+                $self->{asp}->Debug("FileUploadProcess is disabled, file upload data in \$Request->BinaryRead");
             }
-	    }
-	}
+            
+        } else {
+            # Only tie to STDIN if we have cached contents
+            # don't untie *STDIN until DESTROY, so filtered handlers
+            # have an opportunity to use any cached contents that may exist
+            $asp->{dbg} && $asp->Debug("the content type found : ".$headers_in->get('Content-Type'));
+            if(my $len = $self->{TotalBytes}) {
+                $self->{content} = $self->BinaryRead($len) || '';
+                $self->{all_content_read} = 1;
+                tie(*STDIN, 'Apache::ASP::Request', $self);
+                #AJAX POSTs are ``application/x-www-form-urlencoded; charset=UTF-8'' in Firefox3+
+                #by Richard Walsh Nov 25, 2008 (found in nabble)
+                if($headers_in->get('Content-Type') =~ m|^application/x-www-form-urlencoded|) {
+                    $form = &ParseParams($self, \$self->{content});
+                } else {
+                    $form = {};
+                }
+            }
+        }
     }
 
 ASP_REQUEST_POST_READ_DONE:

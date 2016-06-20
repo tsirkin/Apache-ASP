@@ -298,6 +298,7 @@ sub new {
        use_strict       => &get_dir_config($dir_config, 'UseStrict'),
        utf8_source      => &config($self, 'UTF8_Source'),
        utf8_input       => &config($self, 'UTF8_Input'),
+       utf8_output      => &config($self, 'UTF8_Output'),
        win32            => ($^O eq 'MSWin32') ? 1 : 0,
        xslt             => &get_dir_config($dir_config, 'XSLT'),
       }, $class;
@@ -1334,6 +1335,7 @@ sub ReadFile {
     local *READFILE;
     my $flags = '<';
     if($self->{utf8_source}) {
+        $self->{dbg} && $self->Debug("Reading script file in utf8 mode");
         $flags = '<:encoding(UTF-8)';
     }
     open(READFILE,$flags, $file) || $self->Error("can't open file $file for reading");

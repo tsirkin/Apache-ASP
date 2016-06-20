@@ -1,8 +1,8 @@
 
 package Apache::ASP::Response;
 
+use utf8;
 use Apache::ASP::Collection;
-
 use strict;
 no strict qw(refs);
 use vars qw(@ISA @Members %LinkTags $TextHTMLRegexp);
@@ -298,12 +298,17 @@ sub FormFill {
     $asp->{dbg} && $asp->Debug("form fill begin");
     $asp->LoadModule('FormFill', 'HTML::FillInForm') || return;
     my $ref = $self->{BinaryRef};
-
+    
     $$ref =~ s/(\<form[^\>]*\>.*?\<\/form\>)/
 	     {
 		 my $form = $1;
 		 my $start_length = $asp->{dbg} ? length($form) : undef;
 		 eval {
+             ### Strange bug in perl 14 some character encodings are lost in
+             ### regexp search.
+             if($self->{asp}->{utf8_output} && !utf8::is_utf8($form)){
+                 $form = Encode::decode("utf8",$form);
+             }
 		     my $fif = HTML::FillInForm->new();
 		     $form = $fif->fill(
 					scalarref => \$form,
@@ -677,10 +682,7 @@ sub WriteRef {
 	$dataref = $self->CgiHeaders($dataref);
     }
 
-    # add dataref to buffer
     ${$self->{out}} .= $$dataref;
-    
-    #Encode::_utf8_on(${$self->{out}});
     
 	#Encode::from_to(${$self->{out}}, "utf8", "iso-8859-1");
 	
