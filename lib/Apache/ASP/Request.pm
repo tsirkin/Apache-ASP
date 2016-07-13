@@ -98,18 +98,15 @@ sub new {
                     my @params = $q->param($paramName);
                     
                     if($self->{asp}->{utf8_input}) {
-                        eval{
-                            use Encode;
-                            $paramName = Encode::decode("utf8",$paramName);
-                            my @encoded;
-                            for my $paramValue(@params){
-                                if(!ref($paramValue)){
-                                    $paramValue = Encode::decode("utf8",$paramValue);
-                                }
-                                push @encoded,$paramValue;
+                        $paramName = $self->safe_utf8_decode($paramName);
+                        my @encoded;
+                        for my $paramValue(@params){
+                            if(!ref($paramValue)){
+                                $paramValue = $self->safe_utf8_decode($paramValue);
                             }
-                            @params = @encoded;
+                            push @encoded,$paramValue;
                         }
+                        @params = @encoded;
                     }
                     $form{$paramName} = @params > 1 ? [ @params ] : $params[0];
                     if(ref($form{$paramName}) eq 'Fh' || ref($form{$paramName}) eq 'fh' || ref($form{$paramName}) eq 'CGI::File::Temp') {
@@ -120,7 +117,7 @@ sub new {
                             $upload{$paramName}{TempFile} = $q->tmpFileName($fh);
                             $upload{$paramName}{TempFile} =~ s|^/+|/|;
                         }
-                        $upload{$paramName}{BrowserFile} = "$fh";
+                        $upload{$paramName}{BrowserFile} = $self->safe_utf8_decode("$fh");
                         $upload{$paramName}{FileHandle} = $fh;
                         $upload{$paramName}{ContentType} = $upload{$paramName}{'Content-Type'};
                         # tie the file upload reference to a collection... %upload
@@ -184,6 +181,20 @@ ASP_REQUEST_POST_READ_DONE:
     $self->{Cookies} = bless \%cookies, 'Apache::ASP::Collection';
 
     $self;
+}
+
+sub safe_utf8_decode{
+    my ($self,$str)=@_;
+    if($self->{asp}->{utf8_input}) {
+        use Encode;
+        eval{
+            $str = Encode::decode("utf8",$str);
+        }
+    }
+    if($@) {
+        $self->{asp}->Error("Can't decode $str in input as utf8 is this really a utf8? : $@");
+    }
+    return $str;
 }
 
 sub DESTROY {
@@ -309,17 +320,7 @@ sub ParseParams {
             my $todecode = $_;
             $todecode =~ tr/+/ /;       # pluses become spaces
             $todecode =~ s/%([0-9a-fA-F]{2})/chr(hex($1))/ge;
-            if($self->{asp}->{utf8_input}) {
-                eval{
-                    use Encode;
-                    $todecode = Encode::decode("utf8",$todecode);
-                }
-            }
-
-            if($@) {
-                $self->{asp}->Error("Can't decode $string in input as utf8 is this really a utf8? : $@");
-            }
-
+            $todecode = $self->safe_utf8_decode($todecode);
             $todecode;
         } split (/\=/, $pair, 2);
         if(defined $params{$key}) {
