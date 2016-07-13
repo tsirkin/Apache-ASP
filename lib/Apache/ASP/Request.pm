@@ -56,6 +56,7 @@ sub new {
             # occur either
             $asp->{file_upload_process} = &config($asp, 'FileUploadProcess', undef, 1);
             if($asp->{file_upload_process}) {
+                #$self->{asp}->Error("Reading param $paramName");
                 if($asp->{file_upload_temp} = &config($asp, 'FileUploadTemp')) {
                     eval "use CGI;";
                 } else {
@@ -93,23 +94,39 @@ sub new {
                 }
                 $self->{cgi} = $q;
                 for(my @names = $q->param) {
-                    my @params = $q->param($_);
-                    $form{$_} = @params > 1 ? [ @params ] : $params[0];
-                    if(ref($form{$_}) eq 'Fh' || ref($form{$_}) eq 'fh' || ref($form{$_}) eq 'CGI::File::Temp') {
-                        my $fh = $form{$_};
-                        binmode $fh if $asp->{win32};
-                        $upload{$_} = $q->uploadInfo($fh);
-                        if($asp->{file_upload_temp}) {
-                            $upload{$_}{TempFile} = $q->tmpFileName($fh);
-                            $upload{$_}{TempFile} =~ s|^/+|/|;
+                    my $paramName = $_;
+                    my @params = $q->param($paramName);
+                    
+                    if($self->{asp}->{utf8_input}) {
+                        eval{
+                            use Encode;
+                            $paramName = Encode::decode("utf8",$paramName);
+                            my @encoded;
+                            for my $paramValue(@params){
+                                if(!ref($paramValue)){
+                                    $paramValue = Encode::decode("utf8",$paramValue);
+                                }
+                                push @encoded,$paramValue;
+                            }
+                            @params = @encoded;
                         }
-                        $upload{$_}{BrowserFile} = "$fh";
-                        $upload{$_}{FileHandle} = $fh;
-                        $upload{$_}{ContentType} = $upload{$_}{'Content-Type'};
+                    }
+                    $form{$paramName} = @params > 1 ? [ @params ] : $params[0];
+                    if(ref($form{$paramName}) eq 'Fh' || ref($form{$paramName}) eq 'fh' || ref($form{$paramName}) eq 'CGI::File::Temp') {
+                        my $fh = $form{$paramName};
+                        binmode $fh if $asp->{win32};
+                        $upload{$paramName} = $q->uploadInfo($fh);
+                        if($asp->{file_upload_temp}) {
+                            $upload{$paramName}{TempFile} = $q->tmpFileName($fh);
+                            $upload{$paramName}{TempFile} =~ s|^/+|/|;
+                        }
+                        $upload{$paramName}{BrowserFile} = "$fh";
+                        $upload{$paramName}{FileHandle} = $fh;
+                        $upload{$paramName}{ContentType} = $upload{$paramName}{'Content-Type'};
                         # tie the file upload reference to a collection... %upload
                         # may be many file uploads note.
-                        $upload{$_} = bless $upload{$_}, 'Apache::ASP::Collection';
-                        $asp->{dbg} && $asp->Debug("file upload field processed for \$Request->{FileUpload}{$_}", $upload{$_});
+                        $upload{$paramName} = bless $upload{$paramName}, 'Apache::ASP::Collection';
+                        $asp->{dbg} && $asp->Debug("file upload field processed for \$Request->{FileUpload}{$paramName}", $upload{$paramName});
                     }
                 }
                 $form = \%form;
