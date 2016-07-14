@@ -299,10 +299,16 @@ sub new {
        utf8_source      => &config($self, 'UTF8_Source'),
        utf8_input       => &config($self, 'UTF8_Input'),
        utf8_output      => &config($self, 'UTF8_Output'),
+       utf8_on         => &config($self, 'UTF8_On'),
        win32            => ($^O eq 'MSWin32') ? 1 : 0,
        xslt             => &get_dir_config($dir_config, 'XSLT'),
       }, $class;
-
+    ### Turn all utf8 flags on
+    if($self->{utf8_on}){
+        $self->{utf8_source} = 1;
+        $self->{utf8_input} = 1;
+        $self->{utf8_output} = 1;
+    }
     # Only if debug is negative do we kick out all the internal stuff
     if($self->{dbg}) {
 	if($self->{dbg} < 0) {
@@ -3000,6 +3006,22 @@ various DBMs under MLDBM::Sync, which is used by CacheDB,
 you may run the ./bench/bench_sync.pl script from the 
 MLDBM::Sync distribution on your system.
 
+=item UTF8_Source
+
+Read all your asp scripts using utf8 decoding .
+That can spare you adding 'use utf8' to all your scripts.
+
+=item UTF8_Input
+
+Assume all input i(.e. everything in Request) to be utf8 encoding and decode
+them automatically.
+
+=item UTF8_Output
+
+Encode output coming threw external modules to be utf8 encoded.
+Currently that means that FormFill module feed by your asp script will 
+get it right.
+    
 =item CacheDir
 
 By default, the cache directory is at StateDir/cache,
